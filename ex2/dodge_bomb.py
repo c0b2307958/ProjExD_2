@@ -50,7 +50,7 @@ def  gameover(screen: pg.Surface) -> None:
     screen.blit(cry_img, cry_rct_right)
 
     pg.display.update()
-    time.sleep(5) 
+    time.sleep(5) #5秒表示
 
 def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
     bb_imgs = []  # 爆弾Surfaceリスト
