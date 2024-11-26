@@ -61,6 +61,45 @@ def init_bb_imgs() -> tuple[list[pg.Surface], list[int]]:
         bb_imgs.append(bb_img)
     return bb_imgs, bb_accs
 
+def prepare_koukaton_images() -> dict[tuple[int, int], pg.Surface]:
+    kk_img = pg.image.load("fig/3.png")  # 基本のこうかとん画像を読み込む
+    kk_img = pg.transform.flip(kk_img, True, False)
+    kk_imgs = {}
+
+    # 初期の右向き画像を基準に回転
+    directions = [
+        (-5, -5), (0, -5), (+5, -5),  # 上方向
+        (-5,  0), (0,  0), (+5,  0),  # 水平方向
+        (-5, +5), (0, +5), (+5, +5)   # 下方向
+    ]
+    for dx, dy in directions:
+        # 右方向を基準に回転
+        angle = 0
+        if dx == 0 and dy == -5:  # 上方向
+            angle = 90
+        elif dx == 0 and dy == +5:  # 下方向
+            angle = +180
+        elif dx == +5 and dy == 0:  # 右方向
+            angle = 0
+        elif dx == -5 and dy == 0:  # 左方向
+            angle = 180
+        else:  # 斜め方向（右上、右下、左上、左下）
+            angle = -45 if dx > 0 and dy < 0 else (45 if dx > 0 and dy > 0 else (135 if dx < 0 and dy > 0 else -135))
+
+            rotated_img = pg.transform.rotozoom(kk_img, angle, 0.9)  # 回転
+            kk_imgs[(dx, dy)] = rotated_img
+
+        # 回転画像を作成
+            rotated_img = pg.transform.rotozoom(kk_img, angle, 0.9)
+
+        # 左方向の場合、逆向きの画像を用意（左右反転）
+        if dx < 0:
+            rotated_img = pg.transform.flip(kk_img, True, False)  # 左右反転
+
+        # 画像を辞書に登録
+        kk_imgs[(dx, dy)] = rotated_img
+
+    return kk_imgs
 
     
 
@@ -69,52 +108,59 @@ def main():
     pg.display.set_caption("逃げろ！こうかとん")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load("fig/pg_bg.jpg")    
-    kk_img = pg.transform.rotozoom(pg.image.load("fig/3.png"), 0, 0.9)
-    kk_rct = kk_img.get_rect()
+
+    # 方向に応じたこうかとん画像を準備
+    kk_imgs = prepare_koukaton_images()
+    current_image = kk_imgs[(0, 0)]  # 初期状態のこうかとん画像
+
+    kk_rct = current_image.get_rect()
     kk_rct.center = 300, 200
 
-    # 爆弾Surfaceと加速度リストの初期化
-    bb_imgs, bb_accs = init_bb_imgs()
-
-    # 爆弾の初期設定
-    bb_img = bb_imgs[0]  # 初期の爆弾Surface
-    bb_rct = bb_img.get_rect()  # 爆弾Rectの抽出
+    bb_imgs, bb_accs = init_bb_imgs()  # 爆弾Surfaceと加速度リストの初期化
+    bb_img = bb_imgs[0]
+    bb_rct = bb_img.get_rect()
     bb_rct.centerx = random.randint(0, WIDTH)
     bb_rct.centery = random.randint(0, HEIGHT)
-    vx, vy = +5, +5  # 爆弾速度ベクトル
+    vx, vy = +5, +5  # 爆弾の速度ベクトル
 
     clock = pg.time.Clock()
-    tmr = 0  # タイマー変数の初期化
+    tmr = 0  # タイマーの初期化
 
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
 
-        # tmrに応じて爆弾サイズと加速度を変更
-        idx = min(tmr // 500, 9)  # インデックスを計算（最大値9）
-        avx = vx * bb_accs[idx]  # 加速度に応じた速度
-        avy = vy * bb_accs[idx]
-        bb_img = bb_imgs[idx]  # サイズに応じた爆弾Surfaceを選択
-        bb_rct = bb_img.get_rect(center=bb_rct.center)  # サイズ変更に伴いRectを更新
-
         # 背景を描画
         screen.blit(bg_img, [0, 0])
 
-        # こうかとんの移動処理
+        # キー入力処理と移動量計算
         key_lst = pg.key.get_pressed()
         sum_mv = [0, 0]
         for key, tpl in DELTA.items():
             if key_lst[key]:
                 sum_mv[0] += tpl[0]
                 sum_mv[1] += tpl[1]
-        kk_rct.move_ip(sum_mv)
-        if check_bound(kk_rct) != (True, True):  # 画面外なら元に戻す
-            kk_rct.move_ip(-sum_mv[0], -sum_mv[1])
-        screen.blit(kk_img, kk_rct)
 
-        # 爆弾の移動処理
-        bb_rct.move_ip(avx, avy)  # 加速度を反映した移動
+        # 方向に応じたこうかとん画像を設定
+        sum_mv_tuple = tuple(sum_mv)
+        if sum_mv_tuple in kk_imgs:
+            current_image = kk_imgs[sum_mv_tuple]
+
+        # こうかとんを移動
+        kk_rct.move_ip(sum_mv)
+        if check_bound(kk_rct) != (True, True):
+            kk_rct.move_ip(-sum_mv[0], -sum_mv[1])
+
+        # 爆弾のサイズと速度を変更
+        idx = min(tmr // 500, 9)
+        avx = vx * bb_accs[idx]
+        avy = vy * bb_accs[idx]
+        bb_img = bb_imgs[idx]
+        bb_rct = bb_img.get_rect(center=bb_rct.center)
+
+        # 爆弾を移動
+        bb_rct.move_ip(avx, avy)
         yoko, tate = check_bound(bb_rct)
         if not yoko:
             vx *= -1
@@ -126,13 +172,15 @@ def main():
             gameover(screen)
             return
 
-        # 爆弾を描画
+        # 画面にこうかとんと爆弾を描画
+        screen.blit(current_image, kk_rct)
         screen.blit(bb_img, bb_rct)
 
-        # 画面を更新
         pg.display.update()
-        tmr += 1  # タイマーをインクリメント
+        tmr += 1  # タイマーを1フレームごとに加算
         clock.tick(50)
+
+
 
 
 
