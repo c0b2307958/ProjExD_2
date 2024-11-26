@@ -1,7 +1,7 @@
 import os
 import random
 import sys
-
+import time
 import pygame as pg
 
 
@@ -27,6 +27,32 @@ def check_bound(rct: pg.Rect) -> tuple[bool, bool]:
     if rct.top < 0 or HEIGHT < rct.bottom:
         tate = False
     return yoko, tate
+
+def  gameover(screen: pg.Surface) -> None:
+    black_rect = pg.Surface((WIDTH, HEIGHT))  # 画面全体サイズ
+    black_rect.set_alpha(200)  # 半透明
+    black_rect.fill((0, 0, 0))  # 黒色で塗りつぶし
+    screen.blit(black_rect, (0, 0))  # 背景を画面に描画
+
+    # テキストを作成して表示
+    font = pg.font.Font(None, 80)  # フォントを指定
+    text = font.render("GAME OVER", True, (255, 255, 255))  # テキスト作成
+    text_rct = text.get_rect(center=(WIDTH // 2, HEIGHT // 2))  # 中央に配置
+    screen.blit(text, text_rct)
+
+    # 泣いているこうかとん画像を読み込む
+    cry_img = pg.image.load("fig/8.png")
+    cry_rct_left = cry_img.get_rect()
+    cry_rct_left.center = ((WIDTH/2)-200, HEIGHT // 2)  # 左に配置
+    screen.blit(cry_img, cry_rct_left)
+    cry_rct_right = cry_img.get_rect()
+    cry_rct_right.center = ((WIDTH/2)+200, HEIGHT // 2)  # 右に配置
+    screen.blit(cry_img, cry_rct_right)
+
+    pg.display.update()
+    time.sleep(5) 
+
+    
 
 
 def main():
@@ -71,6 +97,10 @@ def main():
             vx *= -1
         if not tate:  # 縦にはみ出てる
             vy *= -1
+
+        if kk_rct.colliderect(bb_rct):  # こうかとんと爆弾が衝突した場合
+            gameover(screen)
+            return
         screen.blit(bb_img, bb_rct)
         pg.display.update()
         tmr += 1
